@@ -3,6 +3,9 @@
 // Используется Project2.rc
 //
 #define IDI_ICON1                       101
+#define IDI_ICON2                       102
+#define IDI_ICON3                       103
+#define IDI_ICON4                       104
 
 // Next default values for new objects
 // 

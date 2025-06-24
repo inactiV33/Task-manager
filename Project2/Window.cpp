@@ -9,64 +9,119 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreate->lpCreateParams));
     }
 
-    switch(uMsg)
+    switch (uMsg)
     {
     case WM_CLOSE:
         DestroyWindow(hWnd);
         break;
-	case WM_DESTROY:
+
+    case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
+
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-
-        // Заливка белым фоном
         FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
-
         EndPaint(hWnd, &ps);
         return 0;
     }
+
     case WM_COMMAND:
     {
         Window* pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-
-        switch (LOWORD(wParam)) {
+        switch (LOWORD(wParam))
+        {
         case MENU_CMD_NEW:
-            if (pWindow) {
-                pWindow->GetDocument().Clear(); // Обновляем документ
+            if (pWindow)
+            {
+                pWindow->GetDocument().Clear();
                 pWindow->GetDocument().title = L"Новый документ";
                 SetWindowText(hWnd, pWindow->GetDocument().title.c_str());
                 pWindow->CreateControls();
                 pWindow->ResetUI();
             }
             break;
+
         case MENU_CMD_OPEN:
             MessageBox(hWnd, L"Нажато 'Открыть'", L"Меню", MB_OK);
             break;
+
         case MENU_CMD_SAVE:
             MessageBox(hWnd, L"Нажато 'Сохранить'", L"Меню", MB_OK);
             break;
+
         case MENU_CMD_EXIT:
             PostQuitMessage(0);
             break;
+
         case IDC_BUTTON_ADD:
-            if (pWindow) {
+            if (pWindow)
+            {
                 wchar_t buffer[256];
-
                 GetWindowText(pWindow->GetInputHandle(), buffer, 256);
+                if (wcslen(buffer) > 0)
+                {
+                    int nextIndex = ListView_GetItemCount(pWindow->GetListViewHandle());
+                    std::wstring indexStr = std::to_wstring(nextIndex + 1);
 
-                if (wcslen(buffer) > 0) {
-                    LRESULT index = SendMessage(pWindow->GetListHandle(), LB_ADDSTRING, 0, (LPARAM)buffer);
-                    SendMessage(pWindow->GetListHandle(), LB_SETCURSEL, index, 0);
+                    LVITEM lvi = {};
+                    lvi.mask = LVIF_TEXT;
+                    lvi.iItem = nextIndex;
+                    lvi.iSubItem = 0;
+                    lvi.pszText = const_cast<LPWSTR>(indexStr.c_str());
+
+                    ListView_InsertItem(pWindow->GetListViewHandle(), &lvi);
+                    ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_TASK, buffer);
+                    //  ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_STATUS, const_cast<LPWSTR>(L"Открыта"));
 
                     pWindow->GetDocument().items.push_back(buffer);
+                    pWindow->GetStatusIcon().push_back(0);
 
                     SetWindowText(pWindow->GetInputHandle(), L"");
+                    SetFocus(pWindow->GetInputHandle());
+
+                    ListView_SetItemState(pWindow->GetListViewHandle(), nextIndex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
                 }
             }
             break;
+        }
+        return 0;
+    }
+
+    case WM_NOTIFY:
+    {
+        Window* pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+        if (!pWindow || !lParam)
+            break;
+
+        LPNMHDR pnmhdr = reinterpret_cast<LPNMHDR>(lParam);
+        if (pnmhdr->idFrom == IDC_TASK_LISTVIEW && pnmhdr->code == NM_CUSTOMDRAW)
+        {
+            LPNMLVCUSTOMDRAW pcd = reinterpret_cast<LPNMLVCUSTOMDRAW>(lParam);
+            if ((pcd->nmcd.dwDrawStage & CDDS_ITEMPREPAINT) && (pcd->nmcd.dwDrawStage & CDDS_SUBITEM))
+            {
+                if (pcd->iSubItem == LISTVIEW_COLUMN_STATUS)
+                {
+                    RECT rc = pcd->nmcd.rc;
+                    int iconIndex = 0;
+                    int item = static_cast<int>(pcd->nmcd.dwItemSpec);
+                    if (item < static_cast<int>(pWindow->GetStatusIcon().size()))
+                        iconIndex = pWindow->GetStatusIcon()[item];
+
+                    HIMAGELIST hImageList = pWindow->GetStatusImageList();
+                    if (hImageList)
+                    {
+                        int iconSize = 16;
+                        int yCenter = rc.top + ((rc.bottom - rc.top - iconSize) / 2);
+                        int xOffset = rc.left + 4;
+                        ImageList_Draw(hImageList, iconIndex, pcd->nmcd.hdc, xOffset, yCenter, ILD_TRANSPARENT);
+                    }
+                    return CDRF_SKIPDEFAULT;
+                }
+            }
+            return CDRF_DODEFAULT;
         }
         return 0;
     }
@@ -77,7 +132,7 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 Window::Window()
     : m_hInstance(GetModuleHandle(nullptr)),
       m_hwndInput(nullptr),
-      m_hwndList(nullptr),
+      m_hwndListView(nullptr),
       m_hwndButton(nullptr)
 {
 
@@ -93,10 +148,10 @@ Window::Window()
 
     RegisterClass(&wndClass);
 
-    DWORD style = WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
 
-    int width = 640;
-	int height = 480;  
+    int width = 800;
+	int height = 600;  
 
     RECT rect;
     rect.left = 250;
@@ -105,6 +160,9 @@ Window::Window()
     rect.bottom = rect.top + height;
 
     AdjustWindowRect(&rect, style, false);
+
+	INITCOMMONCONTROLSEX icex = { sizeof(icex), ICC_LISTVIEW_CLASSES };
+	InitCommonControlsEx(&icex);
 
     m_hWnd = CreateWindowEx(
         0,
@@ -171,15 +229,38 @@ void Window::CreateControls() {
     if (m_hwndInput) return; // Если элемент создан ничего не делаем
 
     // Список задач слева
-    m_hwndList = CreateWindowEx(WS_EX_CLIENTEDGE, L"LISTBOX", nullptr,
-        WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_NOTIFY,
-        20, 20, 250, 400,
-        m_hWnd, (HMENU)IDC_TASK_LIST,
+    m_hwndListView = CreateWindowEx(WS_EX_CLIENTEDGE, WC_LISTVIEW, nullptr,
+        WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL,
+        20, 20, 520, 540,
+        m_hWnd, (HMENU)IDC_TASK_LISTVIEW,
         m_hInstance, nullptr);
 
-    int inputX = 290;
+    LVCOLUMN lvc = {};
+    lvc.mask = LVCF_TEXT | LVCF_WIDTH;
+
+    // Колонка #1 - "Номер задачи"
+    lvc.pszText = const_cast<LPWSTR>(L"№");
+    lvc.cx = 50;
+    ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_NUMBER, &lvc);
+
+	// Колонка #2 - "Задачи"
+	lvc.pszText = const_cast<LPWSTR>(L"Задачи");
+    lvc.cx = 330;
+	ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_TASK, &lvc);
+
+    // Колонка #3 - "Статус"
+    lvc.pszText = const_cast<LPWSTR>(L"Статус");
+    lvc.cx = 120;
+    ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_STATUS, &lvc);
+
+    // ======================= Load icons =======================
+
+    LoadIcons();
+
+	// ======================= Field for input =======================
+    int inputX = 560;
     int inputY = 20;
-    int inputWidth = 300;
+    int inputWidth = 210;
     int inputHeight = 25;
 
     m_hwndInput = CreateWindowEx(0, L"EDIT", nullptr,
@@ -188,17 +269,28 @@ void Window::CreateControls() {
         m_hWnd, nullptr,
         m_hInstance, nullptr);
 
+    // ======================= Field for buttons =======================
+
     // Центрирование кнопки под полем
     int buttonWidth = 100;
-    int buttonHeight = 25;
     int buttonX = inputX + (inputWidth - buttonWidth) / 2;
     int buttonY = inputY + inputHeight + 15;
 
     m_hwndButton = CreateWindowEx(0, L"BUTTON", L"Добавить",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        buttonX, buttonY, buttonWidth, buttonHeight,
+        buttonX, buttonY, buttonWidth, 25,
         m_hWnd, (HMENU)IDC_BUTTON_ADD,
         m_hInstance, nullptr);
+}
+
+std::vector<int>& Window::GetStatusIcon()
+{
+	return m_taskStatusIcons;
+}
+
+const std::vector<int>& Window::GetStatusIcon() const
+{
+    return m_taskStatusIcons;
 }
 
 void Window::ResetUI() {
@@ -206,8 +298,25 @@ void Window::ResetUI() {
     if (m_hwndInput) {
         SetWindowText(m_hwndInput, L"");
     }
-    if (m_hwndList) {
-        SendMessage(m_hwndList, LB_RESETCONTENT, 0, 0);
+    if (m_hwndListView) {
+		ListView_DeleteAllItems(m_hwndListView);
     }
 
+}
+
+void Window::LoadIcons()
+{
+    // Загружаем иконки для статусов задач
+	m_hImageList = ImageList_Create(16, 16, ILC_COLOR32 | ILC_MASK, 3, 1);
+
+    HICON hIconCompleted = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON2));
+    if (!hIconCompleted) MessageBox(NULL, L"IDI_ICON2 не загружен", L"Ошибка загрузки", MB_OK);
+    HICON hIconProcess = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON3));
+    HICON hIconClosed = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON4));
+
+	ImageList_AddIcon(m_hImageList, hIconCompleted);
+	ImageList_AddIcon(m_hImageList, hIconProcess);
+    ImageList_AddIcon(m_hImageList, hIconClosed);
+
+	ListView_SetImageList(m_hwndListView, m_hImageList, LVSIL_SMALL);
 }

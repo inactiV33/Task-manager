@@ -45,6 +45,15 @@
     <Image Include="C:\Users\inactive\Downloads\App.ico">
       <Filter>Файлы ресурсов</Filter>
     </Image>
+    <Image Include="C:\Users\inactive\Downloads\completed.ico">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="C:\Users\inactive\Downloads\process.ico">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="C:\Users\inactive\Downloads\canceled.ico">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="app.manifest" />

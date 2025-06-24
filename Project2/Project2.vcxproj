@@ -138,6 +138,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="C:\Users\inactive\Downloads\App.ico" />
+    <Image Include="C:\Users\inactive\Downloads\canceled.ico" />
+    <Image Include="C:\Users\inactive\Downloads\completed.ico" />
+    <Image Include="C:\Users\inactive\Downloads\process.ico" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="app.manifest" />
