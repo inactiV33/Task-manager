@@ -37,10 +37,12 @@ public:
 	HWND GetInputHandle() const { return m_hwndInput; }
 	HWND GetListViewHandle() const { return m_hwndListView; }
 	HWND GetAddButtonHandle() const { return m_hwndButton; }
+	HWND GetDatePickerHandle() const { return m_hWndDatePicker; }
 
 	HIMAGELIST GetStatusImageList() const { return m_hImageList; }
 	std::vector<int>& GetStatusIcon(); 
 	const std::vector<int>& GetStatusIcon() const;
+
 
 	void ResetUI();
 
@@ -55,6 +57,7 @@ private:
 	HWND m_hwndListView; // Список отображаемых задач
 
 	HIMAGELIST m_hImageList = nullptr;
+	HWND m_hWndDatePicker = nullptr;
 
 	std::vector<int> m_taskStatusIcons;
 };

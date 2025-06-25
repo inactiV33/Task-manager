@@ -72,8 +72,9 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					auto& iconList = pWindow->GetStatusIcon();
 					iconList.push_back(0); // Добавляем иконку по умолчанию (0 - "В процессе")
 
-					SYSTEMTIME st;
-					GetLocalTime(&st);
+                    SYSTEMTIME st = {};
+					DateTime_GetSystemtime(pWindow->GetDatePickerHandle(), &st);
+					//GetLocalTime(&st);
                     wchar_t dateBuffer[64];
                     swprintf_s(dateBuffer, _countof(dateBuffer), L"%02d.%02d.%04d", st.wDay, st.wMonth, st.wYear);
 
@@ -145,9 +146,9 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 Window::Window()
     : m_hInstance(GetModuleHandle(nullptr)),
-      m_hwndInput(nullptr),
-      m_hwndListView(nullptr),
-      m_hwndButton(nullptr)
+    m_hwndInput(nullptr),
+    m_hwndListView(nullptr),
+    m_hwndButton(nullptr)
 {
 
     const wchar_t* CLASS_NAME = L"Hugos Window Class";
@@ -283,12 +284,20 @@ void Window::CreateControls() {
         m_hWnd, nullptr,
         m_hInstance, nullptr);
 
-    // ======================= Field for buttons =======================
+    // ======================= DatePicker =======================
+    
+    m_hWndDatePicker = CreateWindowEx(0, DATETIMEPICK_CLASS, 
+        nullptr, WS_CHILD | WS_VISIBLE | DTS_SHORTDATEFORMAT, 
+        inputX, inputY + 60, inputWidth, 25, 
+        m_hWnd, nullptr,
+        m_hInstance, nullptr);
+
+    // ======================= Buttons =======================
 
     // Центрирование кнопки под полем
     int buttonWidth = 100;
     int buttonX = inputX + (inputWidth - buttonWidth) / 2;
-    int buttonY = inputY + inputHeight + 15;
+    int buttonY = inputY + inputHeight + 70;
 
     m_hwndButton = CreateWindowEx(0, L"BUTTON", L"Добавить",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
