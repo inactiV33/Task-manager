@@ -37,8 +37,8 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (pWindow)
             {
                 pWindow->GetDocument().Clear();
-                pWindow->GetDocument().title = L"Новый документ";
-                SetWindowText(hWnd, pWindow->GetDocument().title.c_str());
+                pWindow->GetDocument().SetTitle(L"Новый документ");
+                SetWindowText(hWnd, pWindow->GetDocument().GetTitle().c_str());
                 pWindow->CreateControls();
                 pWindow->ResetUI();
             }
@@ -49,7 +49,16 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
 
         case MENU_CMD_SAVE:
-            MessageBox(hWnd, L"Нажато 'Сохранить'", L"Меню", MB_OK);
+            if (pWindow) {
+
+                auto& doc = pWindow->GetDocument();
+
+                doc.SetTitle(L"Текущий документ");
+
+                if (doc.SaveToJsonFile(L"tasks.json")) MessageBox(hWnd, L"Сохранено!", L"JSON", MB_OK);
+                else MessageBox(hWnd, L"Ошибка при сохранении", L"Ошибка", MB_ICONERROR);
+            }
+
             break;
 
         case MENU_CMD_EXIT:
@@ -59,10 +68,13 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDC_BUTTON_ADD:
             if (pWindow)
             {
-                wchar_t buffer[256];
-                GetWindowText(pWindow->GetInputHandle(), buffer, 256);
-                if (wcslen(buffer) > 0)
+                wchar_t taskBuffer[256];
+                GetWindowText(pWindow->GetInputHandle(), taskBuffer, 256);
+                if (wcslen(taskBuffer) > 0)
                 {
+                    EnableMenuItem(GetMenu(hWnd), MENU_CMD_SAVE, MF_ENABLED);
+                    DrawMenuBar(hWnd);
+
                     int nextIndex = ListView_GetItemCount(pWindow->GetListViewHandle());
                     std::wstring indexStr = std::to_wstring(nextIndex + 1);
 
@@ -88,11 +100,15 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                     ListView_InsertItem(pWindow->GetListViewHandle(), &lvi);
 
-                    ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_TASK, buffer);
+                    ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_TASK, taskBuffer);
                     ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_DATE, dateBuffer);
 
-                    pWindow->GetDocument().items.push_back(buffer);
+                    //pWindow->GetDocument()..push_back(buffer);
                     //pWindow->GetStatusIcon().push_back(0);
+
+					GetWindowText(pWindow->GetInputHandle(), taskBuffer, _countof(taskBuffer));
+
+                    pWindow->GetDocument().AddTask(taskBuffer, dateBuffer, 0);
 
                     SetWindowText(pWindow->GetInputHandle(), L"");
                     SetFocus(pWindow->GetInputHandle());
@@ -324,7 +340,6 @@ void Window::ResetUI() {
     if (m_hwndListView) {
 		ListView_DeleteAllItems(m_hwndListView);
     }
-
 }
 
 void Window::LoadIcons()
