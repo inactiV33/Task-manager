@@ -66,18 +66,32 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     int nextIndex = ListView_GetItemCount(pWindow->GetListViewHandle());
                     std::wstring indexStr = std::to_wstring(nextIndex + 1);
 
+                    wchar_t numberText[16];
+                    swprintf_s(numberText, _countof(numberText), L"%d", nextIndex + 1);
+
+					auto& iconList = pWindow->GetStatusIcon();
+					iconList.push_back(0); // Добавляем иконку по умолчанию (0 - "В процессе")
+
+					SYSTEMTIME st;
+					GetLocalTime(&st);
+                    wchar_t dateBuffer[64];
+                    swprintf_s(dateBuffer, _countof(dateBuffer), L"%02d.%02d.%04d", st.wDay, st.wMonth, st.wYear);
+
                     LVITEM lvi = {};
-                    lvi.mask = LVIF_TEXT;
+                    lvi.mask = LVIF_TEXT | LVIF_IMAGE;
                     lvi.iItem = nextIndex;
                     lvi.iSubItem = 0;
-                    lvi.pszText = const_cast<LPWSTR>(indexStr.c_str());
+					lvi.iImage = iconList[nextIndex]; // Устанавливаем иконку для элемента
+                    lvi.pszText = numberText;
+                    //lvi.pszText = const_cast<LPWSTR>(indexStr.c_str());
 
                     ListView_InsertItem(pWindow->GetListViewHandle(), &lvi);
+
                     ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_TASK, buffer);
-                    //  ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_STATUS, const_cast<LPWSTR>(L"Открыта"));
+                    ListView_SetItemText(pWindow->GetListViewHandle(), nextIndex, LISTVIEW_COLUMN_DATE, dateBuffer);
 
                     pWindow->GetDocument().items.push_back(buffer);
-                    pWindow->GetStatusIcon().push_back(0);
+                    //pWindow->GetStatusIcon().push_back(0);
 
                     SetWindowText(pWindow->GetInputHandle(), L"");
                     SetFocus(pWindow->GetInputHandle());
@@ -92,37 +106,37 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_NOTIFY:
     {
-        Window* pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-        if (!pWindow || !lParam)
-            break;
+        //Window* pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+        //if (!pWindow || !lParam)
+        //    break;
 
-        LPNMHDR pnmhdr = reinterpret_cast<LPNMHDR>(lParam);
-        if (pnmhdr->idFrom == IDC_TASK_LISTVIEW && pnmhdr->code == NM_CUSTOMDRAW)
-        {
-            LPNMLVCUSTOMDRAW pcd = reinterpret_cast<LPNMLVCUSTOMDRAW>(lParam);
-            if ((pcd->nmcd.dwDrawStage & CDDS_ITEMPREPAINT) && (pcd->nmcd.dwDrawStage & CDDS_SUBITEM))
-            {
-                if (pcd->iSubItem == LISTVIEW_COLUMN_STATUS)
-                {
-                    RECT rc = pcd->nmcd.rc;
-                    int iconIndex = 0;
-                    int item = static_cast<int>(pcd->nmcd.dwItemSpec);
-                    if (item < static_cast<int>(pWindow->GetStatusIcon().size()))
-                        iconIndex = pWindow->GetStatusIcon()[item];
+        //LPNMHDR pnmhdr = reinterpret_cast<LPNMHDR>(lParam);
+        //if (pnmhdr->idFrom == IDC_TASK_LISTVIEW && pnmhdr->code == NM_CUSTOMDRAW)
+        //{
+        //    LPNMLVCUSTOMDRAW pcd = reinterpret_cast<LPNMLVCUSTOMDRAW>(lParam);
+        //    if ((pcd->nmcd.dwDrawStage & CDDS_ITEMPREPAINT) && (pcd->nmcd.dwDrawStage & CDDS_SUBITEM))
+        //    {
+        //        if (pcd->iSubItem == LISTVIEW_COLUMN_DATE)
+        //        {
+        //            RECT rc = pcd->nmcd.rc;
+        //            int iconIndex = 0;
+        //            int item = static_cast<int>(pcd->nmcd.dwItemSpec);
+        //            if (item < static_cast<int>(pWindow->GetStatusIcon().size()))
+        //                iconIndex = pWindow->GetStatusIcon()[item];
 
-                    HIMAGELIST hImageList = pWindow->GetStatusImageList();
-                    if (hImageList)
-                    {
-                        int iconSize = 16;
-                        int yCenter = rc.top + ((rc.bottom - rc.top - iconSize) / 2);
-                        int xOffset = rc.left + 4;
-                        ImageList_Draw(hImageList, iconIndex, pcd->nmcd.hdc, xOffset, yCenter, ILD_TRANSPARENT);
-                    }
-                    return CDRF_SKIPDEFAULT;
-                }
-            }
-            return CDRF_DODEFAULT;
-        }
+        //            HIMAGELIST hImageList = pWindow->GetStatusImageList();
+        //            if (hImageList)
+        //            {
+        //                int iconSize = 16;
+        //                int yCenter = rc.top + ((rc.bottom - rc.top - iconSize) / 2);
+        //                int xOffset = rc.left + 4;
+        //                ImageList_Draw(hImageList, iconIndex, pcd->nmcd.hdc, xOffset, yCenter, ILD_TRANSPARENT);
+        //            }
+        //            return CDRF_SKIPDEFAULT;
+        //        }
+        //    }
+        //    return CDRF_DODEFAULT;
+        //}
         return 0;
     }
     }
@@ -249,9 +263,9 @@ void Window::CreateControls() {
 	ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_TASK, &lvc);
 
     // Колонка #3 - "Статус"
-    lvc.pszText = const_cast<LPWSTR>(L"Статус");
+    lvc.pszText = const_cast<LPWSTR>(L"Срок");
     lvc.cx = 120;
-    ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_STATUS, &lvc);
+    ListView_InsertColumn(m_hwndListView, LISTVIEW_COLUMN_DATE, &lvc);
 
     // ======================= Load icons =======================
 
@@ -310,7 +324,7 @@ void Window::LoadIcons()
 	m_hImageList = ImageList_Create(16, 16, ILC_COLOR32 | ILC_MASK, 3, 1);
 
     HICON hIconCompleted = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON2));
-    if (!hIconCompleted) MessageBox(NULL, L"IDI_ICON2 не загружен", L"Ошибка загрузки", MB_OK);
+    //if (!hIconCompleted) MessageBox(NULL, L"IDI_ICON2 не загружен", L"Ошибка загрузки", MB_OK);
     HICON hIconProcess = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON3));
     HICON hIconClosed = LoadIcon(m_hInstance, MAKEINTRESOURCE(IDI_ICON4));
 
