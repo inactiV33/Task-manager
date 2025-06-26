@@ -40,7 +40,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Project2.rc">
+    <ResourceCompile Include="TaskManager.rc">
       <Filter>src\Файлы ресурсов</Filter>
     </ResourceCompile>
   </ItemGroup>

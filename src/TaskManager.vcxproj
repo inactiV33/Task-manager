@@ -136,7 +136,7 @@
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Project2.rc" />
+    <ResourceCompile Include="TaskManager.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="C:\Users\inactive\Downloads\App.ico" />
