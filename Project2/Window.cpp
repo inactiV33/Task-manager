@@ -46,7 +46,47 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
 
         case MENU_CMD_OPEN:
-            MessageBox(hWnd, L"Нажато 'Открыть'", L"Меню", MB_OK);
+
+            pWindow->ResetUI();
+
+            if (pWindow && pWindow->ShowSaveFileDialog()) {
+				const wchar_t* path = pWindow->GetSelectedSavePath();
+                if (pWindow->GetDocument().LoadFromJsonFile(path)) {
+					SetWindowText(hWnd, pWindow->GetDocument().GetTitle().c_str());
+                    pWindow->CreateControls();
+                    pWindow->ResetUI();
+
+					// Fill ListView with loaded tasks
+					const Document& doc = pWindow->GetDocument();
+					HWND hListView = pWindow->GetListViewHandle();
+					auto& icons = pWindow->GetStatusIcon();
+
+                    for (size_t i = 0; i < doc.GetTaskCount(); ++i) 
+                    {
+                        wchar_t number[16];
+						swprintf_s(number, _countof(number), L"%zu", i + 1);
+
+						LVITEM lvi = {};
+                        lvi.mask = LVIF_TEXT | LVIF_IMAGE;
+                        lvi.iItem = static_cast<int>(i);
+                        lvi.pszText = number;
+                        lvi.iImage = doc.GetStatusIcon(i);
+
+						icons.push_back(lvi.iImage);
+
+                        ListView_InsertItem(hListView, &lvi);
+                        ListView_SetItemText(hListView, i, LISTVIEW_COLUMN_TASK, const_cast<LPWSTR>(doc.GetTask(i).c_str()));
+                        ListView_SetItemText(hListView, i, LISTVIEW_COLUMN_DATE, const_cast<LPWSTR>(doc.GetDate(i).c_str()));
+
+                    }
+
+                    pWindow->SetModified(false);
+                }
+                else {
+                    MessageBox(hWnd, L"Не удалось загрузить файл", L"Ошибка", MB_ICONERROR);
+                }
+            }
+
             break;
 
         case MENU_CMD_SAVE:
@@ -381,6 +421,9 @@ void Window::ResetUI() {
     }
     if (m_hwndListView) {
 		ListView_DeleteAllItems(m_hwndListView);
+    }
+    if (m_hWndDatePicker) {
+        ListView_DeleteAllItems(m_hWndDatePicker);
     }
 }
 

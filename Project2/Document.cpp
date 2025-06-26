@@ -47,8 +47,39 @@ int Document::GetStatusIcon(size_t index) const {
 
 bool Document::LoadFromJsonFile(const std::wstring& filename) {
 
-	m_title = L"Открытый документ";
-	return true;
+	FILE* file = nullptr;
+
+	_wfopen_s(&file, filename.c_str(), L"rt, ccs=UTF-8");
+	if (!file) return false;
+
+	Clear(); // Очищаем текущий документ перед загрузкой
+
+	wchar_t line[512];
+	std::wstring currentTask, currentDate;
+	int currentStatus = 0;
+
+	while (fgetws(line, sizeof(line) / sizeof(wchar_t), file))
+	{
+		if (wcsstr(line, L"\"text\""))
+		{
+			wchar_t buffer[256] = {};
+			swscanf_s(line, L" \"text\": \"%[^\"]", buffer, static_cast<unsigned>(_countof(buffer)));
+			currentTask = buffer;
+		}
+		else if (wcsstr(line, L"\"date\""))
+		{
+			wchar_t buffer[64] = {};
+			swscanf_s(line, L" \"date\": \"%[^\"]", buffer, static_cast<unsigned>(_countof(buffer)));
+			currentDate = buffer;
+		}
+		else if (wcsstr(line, L"\"status\""))
+		{
+			swscanf_s(line, L" \"status\": %d", &currentStatus);
+			AddTask(currentTask, currentDate, currentStatus);
+		}
+	}
+	fclose(file);
+	return true; 
 }
 
 bool Document::SaveToJsonFile(const std::wstring& filename) const {
@@ -56,9 +87,7 @@ bool Document::SaveToJsonFile(const std::wstring& filename) const {
 	FILE* file = nullptr;
 	_wfopen_s(&file, filename.c_str(), L"wt, ccs=UTF-8");
 
-	if (!file) {
-		return false; // Ошибка открытия файла
-	}
+	if (!file) return false;
 
 	fwprintf(file, L"\n\"title\": \"%s\",\n	\"tasks\": [\n", m_title.c_str());
 
