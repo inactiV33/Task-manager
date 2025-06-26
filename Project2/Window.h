@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include "Document.h"
 #include <commctrl.h>
+#include <commdlg.h>
+
 #pragma comment(lib, "comctl32.lib")
 
 #define MENU_CMD_NEW				1
@@ -13,9 +15,12 @@
 #define IDC_BUTTON_ADD				1001
 #define IDC_TASK_LISTVIEW			1002
 
-#define LISTVIEW_COLUMN_NUMBER		0
-#define LISTVIEW_COLUMN_TASK		1
-#define LISTVIEW_COLUMN_DATE		2
+enum Columns
+{
+	LISTVIEW_COLUMN_NUMBER = 0,
+	LISTVIEW_COLUMN_TASK = 1,
+	LISTVIEW_COLUMN_DATE = 2
+};
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -28,6 +33,7 @@ public:
 	~Window();
 
 	bool ProcessMessages();
+	bool ShowSaveFileDialog();
 
 	Document& GetDocument();
 
@@ -42,7 +48,12 @@ public:
 	HIMAGELIST GetStatusImageList() const { return m_hImageList; }
 	std::vector<int>& GetStatusIcon(); 
 	const std::vector<int>& GetStatusIcon() const;
+	OPENFILENAMEW& GetSaveDialogConfig();
 
+	const wchar_t* GetSelectedSavePath() const;
+
+	void SetModified(bool value);
+	bool IsModified() const { return m_isModified; }
 
 	void ResetUI();
 
@@ -58,6 +69,11 @@ private:
 
 	HIMAGELIST m_hImageList = nullptr;
 	HWND m_hWndDatePicker = nullptr;
+
+	OPENFILENAMEW m_ofnSave = {};
+	wchar_t m_saveFileName[MAX_PATH] = {}; 
+
+	bool m_isModified = false; // Флаг изменения документа
 
 	std::vector<int> m_taskStatusIcons;
 };

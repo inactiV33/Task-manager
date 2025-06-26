@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "resource.h"
+#include <commdlg.h>
 
 LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -51,12 +52,20 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case MENU_CMD_SAVE:
             if (pWindow) {
 
-                auto& doc = pWindow->GetDocument();
+                if (pWindow->ShowSaveFileDialog()) 
+                {
+                    std::wstring path = pWindow->GetSelectedSavePath();
 
-                doc.SetTitle(L"Текущий документ");
-
-                if (doc.SaveToJsonFile(L"tasks.json")) MessageBox(hWnd, L"Сохранено!", L"JSON", MB_OK);
-                else MessageBox(hWnd, L"Ошибка при сохранении", L"Ошибка", MB_ICONERROR);
+                    if (pWindow->GetDocument().SaveToJsonFile(path))
+                    {
+                        MessageBox(hWnd, L"Файл успешно сохранен", L"Сохранение", MB_OK);
+                        pWindow->SetModified(false);
+                    } 
+                    else 
+                    {
+                        MessageBox(hWnd, L"Ошибка при сохранении файла", L"Ошибка", MB_OK | MB_ICONERROR);
+					}
+                }
             }
 
             break;
@@ -251,6 +260,22 @@ bool Window::ProcessMessages()
     return true;
 }
 
+bool Window::ShowSaveFileDialog()
+{
+    //ZeroMemory(&m_ofnSave, sizeof(m_ofnSave));
+    ZeroMemory(m_saveFileName, sizeof(m_saveFileName));;
+
+	m_ofnSave.lStructSize = sizeof(m_ofnSave);
+    m_ofnSave.hwndOwner = m_hWnd;
+    m_ofnSave.lpstrFilter = L"JSON Files (*.json)\0*.json\0All files (*.*)\0*.*\0";
+	m_ofnSave.lpstrFile = m_saveFileName;
+	m_ofnSave.nMaxFile = MAX_PATH;
+    m_ofnSave.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+    m_ofnSave.lpstrDefExt = L"json";
+
+    return GetSaveFileNameW(&m_ofnSave) == TRUE;
+}
+
 Document& Window::GetDocument() {
     return m_document;
 }
@@ -330,6 +355,23 @@ std::vector<int>& Window::GetStatusIcon()
 const std::vector<int>& Window::GetStatusIcon() const
 {
     return m_taskStatusIcons;
+}
+
+OPENFILENAMEW& Window::GetSaveDialogConfig()
+{
+	return m_ofnSave;
+}
+
+const wchar_t* Window::GetSelectedSavePath() const
+{
+	return m_saveFileName;
+}
+
+void Window::SetModified(bool value)
+{
+	m_isModified = value;
+	EnableMenuItem(GetMenu(m_hWnd), MENU_CMD_SAVE, value ? MF_ENABLED : MF_GRAYED);
+	DrawMenuBar(m_hWnd);
 }
 
 void Window::ResetUI() {
