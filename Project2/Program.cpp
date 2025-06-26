@@ -1,23 +1,11 @@
-#include <iostream>
 #include "Window.h"
+#include <windows.h>
 
-int main() {
-	
-	std::cout << "Creating window...\n";
+int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
 	
 	Window* pWindow = new Window();
 
-	bool running = true;
-
-	while (running) {
-		
-		if (!pWindow->ProcessMessages()) {
-			std::cout << "Close Window\n";
-			running = false;
-		}
-		// Render
-		Sleep(10);
-	}
+	while (pWindow->ProcessMessages()) { Sleep(10); }
 
 	delete pWindow;
 	return 0;

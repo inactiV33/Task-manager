@@ -2,7 +2,7 @@
 #include "resource.h"
 #include <commdlg.h>
 
-LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     if (uMsg == WM_NCCREATE)
     {
@@ -46,8 +46,6 @@ LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
 
         case MENU_CMD_OPEN:
-
-            pWindow->ResetUI();
 
             if (pWindow && pWindow->ShowSaveFileDialog()) {
 				const wchar_t* path = pWindow->GetSelectedSavePath();
