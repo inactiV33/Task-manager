@@ -1,1 +1,1 @@
-# Task-manager (pet-project, v 0.1)
+# Task-manager (pet-project, v 1.0)
